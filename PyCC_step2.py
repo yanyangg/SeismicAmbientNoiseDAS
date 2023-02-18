@@ -48,7 +48,7 @@ for idate in tqdm(dates):
 
     filelist = glob.glob(os.path.join(path_preprocessed,idate+'*h5'))
     filelist.sort()
-    filelist = filelist[:1]
+    filelist = filelist[:1] # for test use
     if len(filelist) == 0:
         print(f'{idate}: no file')
         continue
