@@ -6,7 +6,7 @@ import numpy as np
 from scipy.signal import tukey, butter, filtfilt, detrend
 import torch
 import torch.fft
-
+ 
 #%%
 def filter(data, fs, f1, f2, alpha=0.05):
     '''
