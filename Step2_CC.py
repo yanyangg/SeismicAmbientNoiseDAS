@@ -1,4 +1,4 @@
-# This script does temporal normalization, spatial whitening, and cc in frequency domain
+# This script does spatial whitening and cc in frequency domain
 import glob
 import numpy as np
 import h5py
