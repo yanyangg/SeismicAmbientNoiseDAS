@@ -1,7 +1,7 @@
 # This script does preprocessing for ambient noise cross-correlation, including:
 # differentiation, detrend, bandpass filter, decimation,
 # demean (of channels), temporal normalization
-# Yan Yang 2022-07-10
+
 
 import numpy as np
 import h5py
