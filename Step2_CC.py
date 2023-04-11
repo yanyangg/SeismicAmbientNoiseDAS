@@ -38,9 +38,11 @@ nchunk = int(np.ceil(npair/ npair_chunk))
 device = 'cuda:0' # GPU device, needs to be changed to multi
 
 #%% temporal normalization/ spectral whitening/ CC
-ccall = np.zeros((npair, int(max_lag * fs * 2 +1)))
+
 
 for idate in tqdm(dates):
+    ccall = np.zeros((npair, int(max_lag * fs * 2 +1)))
+    
     output_file_tmp = f'{output_CC}/{idate}.npy'
     if os.path.exists(output_file_tmp):
         print(output_file_tmp)
