@@ -9,20 +9,20 @@ from time import time
 import os
 from tqdm import tqdm
 from func_PyCC import *
-import glob
+from glob import glob
 from joblib import Parallel, delayed
 
 #%% parameters for Ridgecrest_ODH3
-output_preprocessed = '/net/jin/ssd-tmp-nobak2/yyang7/MorroBay_preprocess/'
-filelist = glob.glob('/kuafu/DASdata/MorroBay/*.h5')
+output_preprocessed = '/kuafu/scratch/yyang7/DASCCtest/preprocessed_data/'
+filelist = glob('/kuafu/scratch/yyang7/DASCCtest/raw_data/*.h5')
 filelist.sort()
-filelist = filelist[107:155]
 
-fs = 250 # sampling frequency
+
+fs = 50 # sampling frequency
 f1, f2 = 0.1, 10 # bandpass filter in preprocessing
-Decimation = 5 # if not 1, decimation after filtering
+Decimation = 1 # if not 1, decimation factor after filtering
 Diff = True # whether differentiate strain to strain rate
-ram_win = 2 # temporal normalization windowm, usually  1/f1/5 ~ 1/f1/2 #
+ram_win = 1 # if 0, one-bit; otherwise temporal normalization windowm, usually  1/f1/5 ~ 1/f1/2 #
 min_length = 60 # length of the segment in preprocessing, in sec, if shorter than this length, skip the file
 min_npts = int(min_length*fs)
 njobs = 5 # number f jobs if parallel
@@ -39,7 +39,7 @@ def preprocess(x, fs, f1, f2, Decimation, Diff=Diff, ram_win = ram_win):
     x = filter(x, fs, f1, f2)
     x = x[:, ::Decimation]
     fs_deci = fs / Decimation
-    x = x - np.median(x, 0)
+    x = x - np.median(x, 0) # common mode noise
     x = temporal_normalization(x, fs_deci, ram_win)
     x = x.astype('float32')
     return x
@@ -69,30 +69,22 @@ for ifile in tqdm(filelist):
         fid.close()
         continue
 
-    # t1 = time()
-
     data = fid['Data'][:] # may do some spatial downsampling here
     nch = data.shape[0]
     npts = data.shape[1]
     fid.close()
 
-    # print('read', time() - t1)
-    # t1 = time()
-
     nchunk = int(np.ceil(npts / min_npts))
     out = Parallel(n_jobs=njobs)(
-        delayed(preprocess)(data[:, int(min_length * fs * i): int(min_length * fs * (i + 1))], fs, f1, f2, Decimation)
-        for i in range(nchunk))
+        delayed(preprocess)(data[:, int(min_length * fs * i): int(min_length * fs * (i + 1))],
+                            fs, f1, f2, Decimation) for i in range(nchunk))
     data_out = np.concatenate(out, axis=-1)
-    # print('parallel', time() - t1)
 
-    # t1 = time()
     fs_deci = fs / Decimation
     output_h5 = h5py.File(outputname, 'w')
     output_data = output_h5.create_dataset('Data', data=data_out)
     output_data.attrs['fs'] = fs_deci
-    output_data.attrs['dt'] = 1 / fs_deci
     output_data.attrs['nt'] = data_out.shape[1]
     output_data.attrs['nCh'] = data_out.shape[0]
     output_h5.close()
-    # print(ifile,'save', time() - t1)
+
