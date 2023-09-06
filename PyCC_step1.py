@@ -1,6 +1,5 @@
 # This script does preprocessing for ambient noise cross-correlation, including:
-# differentiation, detrend, bandpass filter, decimation,
-# demean (of channels), temporal normalization
+# differentiation, detrend, bandpass filter, decimation, demean (of channels), temporal normalization
 # Yan Yang 2022-07-10
 
 import numpy as np
@@ -8,19 +7,18 @@ import h5py
 from time import time
 import os
 from tqdm import tqdm
-from func_PyCC import *
+from func_PyCC_test import *
 from glob import glob
 from joblib import Parallel, delayed
 
 #%% parameters for Ridgecrest_ODH3
-output_preprocessed = '/kuafu/scratch/yyang7/DASCCtest/preprocessed_data/'
-filelist = glob('/kuafu/scratch/yyang7/DASCCtest/raw_data/*.h5')
+output_preprocessed = '/net/han/ssd-tmp-nobak3/yyang7/AWS/Ridgecrest_DAS/SEG-Y/preprocessed'
+filelist = glob('/net/han/ssd-tmp-nobak3/yyang7/AWS/Ridgecrest_DAS/SEG-Y/hourly/*segy')
 filelist.sort()
 
-
-fs = 50 # sampling frequency
-f1, f2 = 0.1, 10 # bandpass filter in preprocessing
-Decimation = 1 # if not 1, decimation factor after filtering
+fs = 250 # sampling frequency
+f1, f2 = 0.1, 20 # bandpass filter in preprocessing
+Decimation = 5 # if not 1, decimation factor after filtering
 Diff = True # whether differentiate strain to strain rate
 ram_win = 1 # if 0, one-bit; otherwise temporal normalization windowm, usually  1/f1/5 ~ 1/f1/2 #
 min_length = 60 # length of the segment in preprocessing, in sec, if shorter than this length, skip the file
@@ -49,30 +47,15 @@ if not os.path.exists(output_preprocessed):
     os.mkdir(output_preprocessed)
 
 for ifile in tqdm(filelist):
-    outputname = os.path.join(output_preprocessed, ifile.split('_')[-1].replace(
-        '-', '').replace('T', '').replace(':', '').replace(
-        'Z', '').replace(' ', '').replace('T', '').replace(':', '')[-17:])
+    outputname = os.path.join(output_preprocessed, os.path.basename(ifile).replace('.segy', '.h5'))
     # try not overlap
     if os.path.exists(outputname):
         print(outputname, 'exists')
         continue
 
-    fid = h5py.File(ifile, 'r')
-    fs_data = fid['Data'].attrs['fs']
-    nt_data = fid['Data'].attrs['nt']
-    if fs_data != fs:
-        print(f'wrong fs: {ifile}')
-        fid.close()
-        continue
-    if nt_data < min_npts:
-        print(f'too short file: {ifile}')
-        fid.close()
-        continue
-
-    data = fid['Data'][:] # may do some spatial downsampling here
+    data, das_time = read_PASSCAL_segy(ifile)
     nch = data.shape[0]
     npts = data.shape[1]
-    fid.close()
 
     nchunk = int(np.ceil(npts / min_npts))
     out = Parallel(n_jobs=njobs)(
